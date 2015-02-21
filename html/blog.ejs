@@ -1,0 +1,7 @@
+<%
+  cur_page["head"] = include(htmlpath+"/parts/head.html");
+  cur_page["body"] = include(htmlpath+"/parts/error.html");
+  cur_page["body"] += "\n"+include(htmlpath+"/parts/bloglist.html");
+  cur_page["foot"] = include(htmlpath+"/footerjs/error.js");
+  cur_page["foot"] += "\n"+include(htmlpath+"/footerjs/bloglist.js");
+%><%-include(htmlpath+"/template")%>

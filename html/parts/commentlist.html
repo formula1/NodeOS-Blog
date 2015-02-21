@@ -1,0 +1,16 @@
+<div class="container" ng-controller="CommentListCtrl" >
+  <article ng-repeat="item in blog" class="row">
+    <div class="col-sm-8 col-sm-offset-2">
+      <header class="{{item.state}}">
+        <h3 class="title">
+          <a href="{{item.user.html_url}}">
+            <img src="{{item.user.avatar_url}}" />
+            <span>{{item.user.login}}</span>
+          </a>
+        </h3>
+        <a href="{{item.html_url}}">View on Github</a>
+      </header>
+      <div class="content" ng-bind-html="item.bodyHTML | to_trusted"></div>
+    </div>
+  </article>
+</div>
