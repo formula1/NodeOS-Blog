@@ -1,4 +1,4 @@
-var hash = url.parse(document.location).hash;
+var hash = document.location.toString().split("#")[1];
 NodeOsBlog.controller('BlogSingleCtrl', function ($scope, $http) {
   $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash;
   $scope.blog = [];

@@ -1,4 +1,4 @@
-NodeOsBlog.controller('BlogListCtrl', function ($scope, $http) {
+NodeOsBlog.controller('CommentListCtrl', function ($scope, $http) {
   $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash+"/comments";
   $scope.blog = [];
   $scope.parseMarkdown = function(item,next){

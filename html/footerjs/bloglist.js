@@ -1,4 +1,4 @@
-NodeOsBlog.controller('BlogSingleCtrl', function ($scope, $http) {
+NodeOsBlog.controller('BlogListCtrl', function ($scope, $http) {
   $scope.uriPath = "/NodeOS/NodeOS/issues";
   $scope.blog = [];
   $scope.parseMarkdown = function(item,next){
