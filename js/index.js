@@ -1,10 +1,12 @@
 var NodeOsBlog = angular.module('NodeOsBlog', []);
 var errors = [];
+
 NodeOsBlog.filter('to_trusted', ['$sce', function($sce){
   return function(text) {
     return $sce.trustAsHtml(text);
   };
 }]);
+
 NodeOsBlog.controller('ErrorListCtrl', function($scope){
   $scope.errors = errors;
   var oldwinerr = window.onerror;
@@ -14,8 +16,10 @@ NodeOsBlog.controller('ErrorListCtrl', function($scope){
     }
   };
 });
+
 NodeOsBlog.controller('BlogListCtrl', function ($scope, $http) {
   $scope.uriPath = "/NodeOS/NodeOS/issues";
+  $scope.labels = "blog";
   $scope.blog = [];
   $scope.parseMarkdown = function(item,next){
     $http.post("https://api.github.com/markdown",{text:item.body})
@@ -33,7 +37,7 @@ NodeOsBlog.controller('BlogListCtrl', function ($scope, $http) {
     if($scope.last && $scope.last < page) return;
     var i=0;
     var l=-1;
-    $http.get('https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=created&page='+page)
+    $http.get('https://api.github.com/repos'+$scope.uriPath+'?labels='+$scope.labels+'&sort=created&page='+page)
     .success(function(data,status,headers) {
       console.log(headers);
       console.log(headers.link);

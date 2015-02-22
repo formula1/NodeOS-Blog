@@ -31,7 +31,6 @@
       <div class="collapse navbar-collapse navbar-ex1-collapse">
         <ul class="nav navbar-nav">
           <li><a href="http://node-os.com/blog">Blog</a></li>
-          <li><a href="http://npkg.org">npkg.org</a></li>
         </ul>
       </div>
       <!-- /.navbar-collapse -->
@@ -52,7 +51,7 @@
               Don't worry, it probably was not your fault... probably...
               <br/><br/>
               Even if it was,
-              <a target="_blank" href="https://github.com/formula1/NodeOS-Blog/issues" >just submit an issue :)</a>
+              <a target="_blank" href="https://github.com/NodeOS/GitBlog/issues" >just submit an issue :)</a>
             </footer>
           </div>
         </article>
@@ -63,8 +62,10 @@
           <div class="col-sm-8 col-sm-offset-2">
             <header class="{{item.state}}">
               <a href="https://github.com/{{uriPath}}/{{item.number}}">
-                <h3 class="title">{{item.title}}</h3>
+                <h2 class="title">{{item.title}}</h2>
               </a>
+              <span>by <a href="{{item.user.html_url}}">{{item.user.login}}</a></span>
+              <p class="blog-date">{{item.created_at}}, updated {{item.updated_at}}</p>
             </header>
             <div class="content" ng-bind-html="item.bodyHTML | to_trusted"></div>
             <footer>
@@ -92,7 +93,7 @@
         <div class="row">
           <div class="col-sm-7">
             <h3 class="footer-title">Share</h3>
-            <p>node-os is a work in progress.</p>
+            <p>NodeOS is a work in progress.</p>
             <p>If you would like to support us, please share node-os via Twitter</p>
             <p class="pvl">
               <a href="https://twitter.com/TheNodeOS" class="twitter-follow-button" data-show-count="false" data-size="large">Follow @TheNodeOS</a>
