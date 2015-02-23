@@ -9,6 +9,15 @@
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular.min.js"></script>
     <style>
       #articles img{max-width:100%}
+      .section
+      {
+        padding-top: 0px
+      }
+      footer
+      {
+        padding-top: 0px;
+        padding-bottom: 0px
+      }
     </style>
     <!-- END: ANGULAR DEPENDENCY -->
 
@@ -31,6 +40,7 @@
       <div class="collapse navbar-collapse navbar-ex1-collapse">
         <ul class="nav navbar-nav">
           <li><a href="http://node-os.com/blog">Blog</a></li>
+          <li><a href="http://pipes.yahoo.com/pipes/pipe.run?_id=d98a965ba7d3f6555b939d707b18dc39&_render=rss&label=blog&owner=NodeOS&repo=NodeOS">RSS</a></li>
         </ul>
       </div>
       <!-- /.navbar-collapse -->
@@ -65,7 +75,9 @@
                 <h2 class="title">{{item.title}}</h2>
               </a>
               <span>by <a href="{{item.user.html_url}}">{{item.user.login}}</a></span>
-              <p class="blog-date">{{item.created_at}}, updated {{item.updated_at}}</p>
+              <p class="blog-date">{{item.created_at | date}}
+                <span ng-if="item.created_at < item.updated_at">, updated {{item.updated_at | date}}</span>
+              </p>
             </header>
             <div class="content" ng-bind-html="item.bodyHTML | to_trusted"></div>
             <footer>
