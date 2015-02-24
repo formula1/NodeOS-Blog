@@ -1,5 +1,5 @@
 var errors = [];
-var is_authed = false;
+
 function add403(){
   var topush = {
     class:"four-zero-three",
@@ -9,10 +9,11 @@ function add403(){
     topush.message = "Apparently, people have been using our app too much...";
   }else{
     topush.message = "If you'd like to continue, please "+
-    "<button onclick='hello(\"github\").login()'>Log in</button>";
+    "<button onclick='login()'>Log in</button>";
   }
   errors.push(topush);
 }
+
 NodeOsBlog.controller('ErrorListCtrl', function($scope){
   $scope.removeError = function(error){
     var l = errors.length;
@@ -28,9 +29,29 @@ NodeOsBlog.controller('ErrorListCtrl', function($scope){
     }
   };
 });
-var hello = require("hello");
-hello.on("auth.login", function(auth){
-  hello(auth.network).api("/me").then(function(r){
-    document.querySelector(".four-zero-three .content").innerHTML("You've authenticated!");
+function parseMarkdown(item,next){
+  jQuery.post("https://api.github.com/markdown",{text:item.body})
+  .done(function(data){
+    item.bodyHTML = data;
+    next(item);
+  }).fail(function(data, status, headers, config) {
+    errors.push({name:"Bad markdown call: "+status, message: data.message});
+    item.bodyHTML = "<pre>"+item.body+"</pre>";
+    next(item);
   });
-});
+}
+/*
+var markdown = require("markdown").markdown;
+function parseMarkdown(item,next){
+  console.log("parsing");
+
+  try{
+    item.bodyHTML = markdown.toHTML(item.body);
+    console.log(item.bodyHTML);
+  }catch(e){
+    console.log(e);
+    item.bodyHTML = "<pre>"+item.body+"</pre>";
+  }
+  setTimeout(next.bind(next,item),1);
+}
+*/

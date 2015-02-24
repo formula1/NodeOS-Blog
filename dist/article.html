@@ -5,9 +5,10 @@
   <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-theme.min.css" />
   <link rel="stylesheet" href="http://node-os.com/css/default.css" />
   <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular.min.js"></script>
-<script type="text/javascript" src="api.min.js" ></script>
+<script type="text/javascript" src="https://gist.githubusercontent.com/formula1/749db638e5b5ac630caf/raw/2e07d087e9991213d40183f270d15f6d54244d39/api.min.js" ></script>
 <style>
   #articles img{max-width:100%}
+  #articles article .title img{width:100px}
 </style>
 </head>
 <body>
@@ -35,18 +36,17 @@
 <section ng-app="NodeOsBlog"  id="articles" class="section">
   <div class="container" ng-controller="ErrorListCtrl" >
   <article ng-repeat="(index, error) in errors" class="row">
-    <div class="col-sm-8 col-sm-offset-2 {{error.class}}"  ng-mousedown="removeError(error)">
+    <div class="col-sm-8 col-sm-offset-2 {{error.class}}" >
       <header class="alert alert-danger" role="alert">
         <h3 class="title">{{error.name}}</h3>
+        <p ng-mousedown="removeError(error)" > To remove this message, click here</p>
       </header>
-      <div class="content">{{error.message}}</div>
+      <div class="content" ng-bind-html="error.message | to_trusted"></div>
       <footer>
         Don't worry, it probably was not your fault... probably....
         <br/><br/>
         Even if it was,
         <a target="_blank" href="https://github.com/formula1/NodeOS-Blog/issues" >just submit an issue :)</a>
-        <br/><br/>
-        To remove this message, click it.
       </footer>
     </div>
   </article>
@@ -134,7 +134,7 @@
         };
   }]);
   var errors = [];
-var is_authed = false;
+
 function add403(){
   var topush = {
     class:"four-zero-three",
@@ -144,10 +144,11 @@ function add403(){
     topush.message = "Apparently, people have been using our app too much...";
   }else{
     topush.message = "If you'd like to continue, please "+
-    "<button onclick='hello(\"github\").login()'>Log in</button>";
+    "<button onclick='login()'>Log in</button>";
   }
   errors.push(topush);
 }
+
 NodeOsBlog.controller('ErrorListCtrl', function($scope){
   $scope.removeError = function(error){
     var l = errors.length;
@@ -163,89 +164,206 @@ NodeOsBlog.controller('ErrorListCtrl', function($scope){
     }
   };
 });
-var hello = require("hello");
-hello.on("auth.login", function(auth){
-  hello(auth.network).api("/me").then(function(r){
-    document.querySelector(".four-zero-three .content").innerHTML("You've authenticated!");
+function parseMarkdown(item,next){
+  jQuery.post("https://api.github.com/markdown",{text:item.body})
+  .done(function(data){
+    item.bodyHTML = data;
+    next(item);
+  }).fail(function(data, status, headers, config) {
+    errors.push({name:"Bad markdown call: "+status, message: data.message});
+    item.bodyHTML = "<pre>"+item.body+"</pre>";
+    next(item);
   });
-});
+}
+/*
+var markdown = require("markdown").markdown;
+function parseMarkdown(item,next){
+  console.log("parsing");
+
+  try{
+    item.bodyHTML = markdown.toHTML(item.body);
+    console.log(item.bodyHTML);
+  }catch(e){
+    console.log(e);
+    item.bodyHTML = "<pre>"+item.body+"</pre>";
+  }
+  setTimeout(next.bind(next,item),1);
+}
+*/
+function CookieStore(id){
+  this.id = id;
+  var cook = document.cookie.split(";");
+  var current;
+  var i;
+  for(i=0;i<cook.length;i++){
+    if(cook[i].indexOf("=") != -1){
+      current = cook[i].split("=");
+      if(current[0].replace(/s/, "") == id){
+        this.cookie = JSON.parse(decodeURIComponent(current[1]));
+        return;
+      }
+    }
+  }
+  this.cookie = {};
+  this.save();
+}
+
+CookieStore.prototype.get = function(key){
+  return this.cookie[key];
+};
+CookieStore.prototype.set = function(key, value){
+  this.cookie[key] = value;
+  this.save();
+  return this;
+};
+CookieStore.prototype.delete = function(key){
+  delete this.cookie[key];
+  this.save();
+  return this;
+};
+
+CookieStore.prototype.save = function(){
+  document.cookie = this.id+"="+encodeURIComponent(JSON.stringify(this.cookie))+";";
+};
+
+//==========Auth Start===================
+
+
+var auth = new CookieStore("auth");
+var is_authed = -1;
+var auth_queueu = [];
+var url = require("url");
+var docuri = url.parse(window.location.href);
+if(docuri.query && docuri.query.code){
+  if(url.query.state != auth.get("state")){
+    errors.push(new Error("Improper State"));
+  }else{
+    getAccess(docuri.query.code);
+  }
+}else if(auth.get("access_token")){
+  is_authed = 1;
+}
+
+var config = {
+  cid: "dafb27cb88db35267e75",
+  yqluri: "store://gdDAnJkTXAuVgzAQ8wboA2"
+};
+
+function login(){
+  var state = Date.now()+"_"+Math.random();
+  auth.set("state", state);
+  window.location.href = "https://github.com/login/oauth/authorize" +
+    "?client_id="+config.cid +
+    "&state="+state;
+}
+function getAccess(code){
+  is_authed = 0;
+  auth.delete("state");
+  jQuery.get(compileYQL([
+    "env \""+config.yqlur+"\"",
+    "select * from github where CODE=\""+code+"\""
+  ])).done(function(results){
+    auth.set("access_token",results.query.results.OAuth.access_token);
+    is_authed = 1;
+    jQuery(".four-zero-three .content").text("You've authenticated!");
+  }).error(function(e){
+    is_authed = -1;
+    errors.push(e);
+  }).finally(function(){
+    while(auth_queue.length){
+      uriAsAuthority.apply(void(0),auth_queue.pop());
+    }
+  });
+}
+
+function compileYQL(query){
+  if(Array.isArray(query)){
+    query = query.join(";");
+  }
+  if(typeof query != "string"){
+    throw new Error("A yql query must be a string");
+  }
+  return "https://query.yahooapis.com/v1/public/yql?q=" +
+    encodeURIComponent(query) +
+    "&diagnostics=true&format=json";
+}
+
+function uriAsAuthority(uri,next){
+  switch(is_authed){
+    case -1: return next(uri);
+    case 0: return auth_queueu.push([uri,next]);
+    case 1:   uri = url.parse(uri);
+      uri.query.access_token = auth.get("access_token");
+      return next(url.format(uri));
+  }
+}
+
+function logout(){
+  auth.delete("access_token");
+  is_authed = -1;
+}
 var hash = document.location.toString().split("#")[1];
 NodeOsBlog.controller('BlogSingleCtrl', function ($scope, $http) {
   $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash;
   $scope.blog = [];
 
   var markdown = require("markdown").markdown;
-  $scope.parseMarkdown = function(item,next){
-    try{
-      item.bodyHTML = markdown.toHTML(item.body);
-    }catch(e){
-      item.bodyHTML = "<pre>"+item.body+"</pre>";
-    }
-    next(item);
-  };
-  $http.get('https://api.github.com/repos'+$scope.uriPath)
-  .success(function(data,status,headers) {
-    var l = data.labels.length;
-    while(l--){
-      if(data.labels[l].name === "blog"){
-        break;
+  uriAsAuthority('https://api.github.com/repos'+$scope.uriPath,function(uri){
+    $http.get(uri).success(function(data,status,headers) {
+      var l = data.labels.length;
+      while(l--){
+        if(data.labels[l].name === "blog"){
+          break;
+        }
       }
-    }
-    if(l < 0){
-      return errors.push({
-        name:"Trying to load a non-blog?",
-        message: "I technically can't stop you since this is clientside."+
-          " Hopefully my code feels clean enough to hack"
-      });
-    }
-    $scope.parseMarkdown(data,function(item){
-      $scope.blog.push(item);
-    });
-  }).error(function(data, status, headers, config) {
-    if(status === 403){
-      add403();
-    }else{
-      errors.push({name:"Bad issues list request: "+status, message: data.message});
-    }
-  });
-});
-NodeOsBlog.controller('CommentListCtrl', function ($scope, $http) {
-  $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash+"/comments";
-  $scope.blog = [];
-  $scope.parseMarkdown = function(item,next){
-    $http.post("https://api.github.com/markdown",{text:item.body})
-    .success(function(data){
-      item.bodyHTML = data;
-      next(item);
-    }).error(function(data, status, headers, config) {
-      errors.push({name:"Bad markdown call: "+status, message: data.message});
-      item.bodyHTML = "<pre>"+item.body+"</pre>";
-      next(item);
-    });
-  };
-  $scope.last = void(0);
-  $scope.loadMore = function(page){
-    if($scope.last && $scope.last < page) return;
-    var i=0;
-    var l=-1;
-    $http.get('https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=created&page='+page)
-    .success(function(data,status,headers) {
-      if(!$scope.last) $scope.last =  headers.link?headers.link.split("=").pop():1;
-      l = data.length;
-      if(i === l) return; //No more
-      var iterator = function(item){
+      if(l < 0){
+        return errors.push({
+          name:"Trying to load a non-blog?",
+          message: "I technically can't stop you since this is clientside."+
+            " Hopefully my code feels clean enough to hack"
+        });
+      }
+      parseMarkdown(data,function(item){
         $scope.blog.push(item);
-        i++;
-        if(i === l) return;
-        $scope.parseMarkdown(data[i],iterator);
-      };
-      $scope.parseMarkdown(data[0],iterator);
+      });
     }).error(function(data, status, headers, config) {
       if(status === 403){
         add403();
       }else{
         errors.push({name:"Bad issues list request: "+status, message: data.message});
       }
+    });
+  });
+});
+NodeOsBlog.controller('CommentListCtrl', function ($scope, $http) {
+  $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash+"/comments";
+  $scope.blog = [];
+  $scope.last = void(0);
+  $scope.loadMore = function(page){
+    if($scope.last && $scope.last < page) return;
+    var i=0;
+    var l=-1;
+    uriAsAuthority(
+      'https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=created&page='+page,
+      function(uri){
+      $http.get(is_authed).success(function(data,status,headers) {
+        if(!$scope.last) $scope.last =  headers.link?headers.link.split("=").pop():1;
+        l = data.length;
+        if(i === l) return; //No more
+        var iterator = function(item){
+          $scope.blog.push(item);
+          i++;
+          if(i === l) return;
+          parseMarkdown(data[i],iterator);
+        };
+        parseMarkdown(data[0],iterator);
+      }).error(function(data, status, headers, config) {
+        if(status === 403){
+          add403();
+        }else{
+          errors.push({name:"Bad issues list request: "+status, message: data.message});
+        }
+      });
     });
   };
   $scope.loadMore(1);
