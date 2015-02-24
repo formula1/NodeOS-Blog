@@ -5,7 +5,7 @@ function add403(){
     class:"four-zero-three",
     name:"You've hit max data"
   };
-  if(is_authed){
+  if(is_authed === 1){
     topush.message = "Apparently, people have been using our app too much...";
   }else{
     topush.message = "If you'd like to continue, please "+
@@ -29,24 +29,41 @@ NodeOsBlog.controller('ErrorListCtrl', function($scope){
     }
   };
 });
+/* */
 function parseMarkdown(item,next){
-  jQuery.post("https://api.github.com/markdown",{text:item.body})
-  .done(function(data){
-    item.bodyHTML = data;
-    next(item);
-  }).fail(function(data, status, headers, config) {
-    errors.push({name:"Bad markdown call: "+status, message: data.message});
-    item.bodyHTML = "<pre>"+item.body+"</pre>";
-    next(item);
+  uriAsAuthority("https://api.github.com/markdown/raw",function(uri){
+    jQuery.ajax({
+      url:uri,
+      type:'POST',
+      headers: {
+          'Content-Type': 'text/plain'
+      },
+      data:item.body
+    }).done(function(data){
+      item.bodyHTML = data;
+    }).fail(function(response, type, title, config) {
+      if(response.status === 403){
+        add403();
+      }else{
+        errors.push({name:"Bad markdown call: "+response.status, message: data.message});
+      }
+      item.bodyHTML = "<pre>"+item.body+"</pre>";
+    }).finally(function(){
+      next(item);
+    });
   });
 }
+
 /*
 var markdown = require("markdown").markdown;
 function parseMarkdown(item,next){
   console.log("parsing");
 
   try{
-    item.bodyHTML = markdown.toHTML(item.body);
+    var t = jQuery("<div>"+markdown.toHTML(item.body)+"</div>");
+    t.find("code").wrap("<pre></pre>");
+
+    item.bodyHTML = t.html();
     console.log(item.bodyHTML);
   }catch(e){
     console.log(e);
@@ -54,4 +71,4 @@ function parseMarkdown(item,next){
   }
   setTimeout(next.bind(next,item),1);
 }
-*/
+/* */
