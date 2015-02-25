@@ -5,6 +5,7 @@ var fs = require("fs");
 var b = browserify();
 b.require("markdown");
 b.require(__dirname+"/node_modules/highlight.js/lib/index.js", {expose:"highlight"});
+b.require("querystring");
 b.require("url");
 b.bundle(function(e,buff){
   if(e) throw e;

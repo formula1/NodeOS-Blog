@@ -39,23 +39,25 @@ CookieStore.prototype.save = function(){
 
 var auth = new CookieStore("auth");
 var is_authed = -1;
-var auth_queueu = [];
+var auth_queue = [];
 var url = require("url");
+var querystring = require("querystring");
 var docuri = url.parse(window.location.href);
+docuri.query = querystring.parse(docuri.query);
+var config = {
+  cid: "dafb27cb88db35267e75",
+  yqluri: "store://gdDAnJkTXAuVgzAQ8wboA2"
+};
 if(docuri.query && docuri.query.code){
-  if(url.query.state != auth.get("state")){
+  if(docuri.query.state != auth.get("state")){
     errors.push(new Error("Improper State"));
   }else{
     getAccess(docuri.query.code);
   }
 }else if(auth.get("access_token")){
+  console.log(auth.get("access_token"));
   is_authed = 1;
 }
-
-var config = {
-  cid: "dafb27cb88db35267e75",
-  yqluri: "store://gdDAnJkTXAuVgzAQ8wboA2"
-};
 
 function login(){
   var state = Date.now()+"_"+Math.random();
@@ -68,16 +70,24 @@ function getAccess(code){
   is_authed = 0;
   auth.delete("state");
   jQuery.get(compileYQL([
-    "env \""+config.yqlur+"\"",
+    "env \""+config.yqluri+"\"",
     "select * from github where CODE=\""+code+"\""
   ])).done(function(results){
+    console.log("auth success");
+    console.log(arguments);
     auth.set("access_token",results.query.results.OAuth.access_token);
     is_authed = 1;
     jQuery(".four-zero-three .content").text("You've authenticated!");
-  }).error(function(e){
+  }).fail(function(e){
+    console.error(arguments);
     is_authed = -1;
-    errors.push(e);
-  }).finally(function(){
+    errors.push({
+      class:"four-zero-three",
+      name:"You've failed authorization",
+      message: "You can always try again"
+    });
+  }).always(function(){
+    console.log("always");
     while(auth_queue.length){
       uriAsAuthority.apply(void(0),auth_queue.pop());
     }
@@ -97,13 +107,13 @@ function compileYQL(query){
 }
 
 function uriAsAuthority(uri,next){
-  switch(is_authed){
-    case -1: return next(uri);
-    case 0: return auth_queueu.push([uri,next]);
-    case 1:   uri = url.parse(uri);
-      uri.query.access_token = auth.get("access_token");
-      return next(url.format(uri));
-  }
+  if(is_authed === -1) return next(uri);
+  if(is_authed === 0) return auth_queue.push([uri,next]);
+  uri = url.parse(uri);
+  uri.query = querystring.parse(uri.query);
+  uri.query.access_token = auth.get("access_token");
+  uri.search = "?"+querystring.stringify(uri.query);
+  next(url.format(uri));
 }
 
 function logout(){

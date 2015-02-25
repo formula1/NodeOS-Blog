@@ -6,7 +6,8 @@ function add403(){
     name:"You've hit max data"
   };
   if(is_authed === 1){
-    topush.message = "Apparently, people have been using our app too much...";
+    topush.message = "Apparently, people have been using our app too much..."+
+    "<button onclick='login()'>Log in</button>";
   }else{
     topush.message = "If you'd like to continue, please "+
     "<button onclick='login()'>Log in</button>";
@@ -48,7 +49,7 @@ function parseMarkdown(item,next){
         errors.push({name:"Bad markdown call: "+response.status, message: data.message});
       }
       item.bodyHTML = "<pre>"+item.body+"</pre>";
-    }).finally(function(){
+    }).always(function(){
       next(item);
     });
   });
