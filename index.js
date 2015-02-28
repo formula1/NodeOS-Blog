@@ -3,6 +3,7 @@ var UglifyJS = require("uglify-js");
 var fs = require("fs");
 
 var b = browserify();
+b.require("./AuthProvider", {expose:"AuthProvider"});
 b.require("markdown");
 b.require(__dirname+"/node_modules/highlight.js/lib/index.js", {expose:"highlight"});
 b.require("querystring");
