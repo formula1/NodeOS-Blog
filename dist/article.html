@@ -8,7 +8,7 @@
 <script type="text/javascript" src="/api.min.js" ></script>
 <style>
   #articles img{max-width:100%}
-  #articles article .title img{width:100px}
+  #articles article .title img{height:50px}
 </style>
 </head>
 <body>
@@ -56,7 +56,7 @@
     <div class="col-sm-8 col-sm-offset-2">
       <header class="{{item.state}}">
         <h3 class="title">
-          <a href="article.html#{{item.number}}">
+          <a href="article.html#!{{item.number}}">
             {{item.title}}
           </a>
         </h3>
@@ -150,6 +150,13 @@ function add403(){
     "<button onclick='user.login()'>Log in</button>";
   }
   errors.push(topush);
+}
+
+function add404(){
+  errors.push({
+    name: "Your in the wrong place my friend.",
+    message: "<a href='/'>Heres a hand, we'll get you back on the right track</a>"
+  });
 }
 
 NodeOsBlog.controller('ErrorListCtrl', function($scope){
@@ -269,12 +276,37 @@ user.on("access-error",function(e){
 user.on("access-success",function(token){
   jQuery(".four-zero-three .content").text("You've authenticated!");
 });
-var hash = document.location.toString().split("#")[1];
+var num = (function(){
+  var temp = document.location.href.split("#!")[1];
+  console.log(temp);
+  if(/[0-9]+/.test(temp)) return temp;
+  temp = document.location.href.split("?");
+  if(temp.length == 1){
+    return add404();
+  }
+  temp = require("querystring").parse(temp[1]);
+  if(!temp._escaped_fragment_){
+    return add404();
+  }
+  return temp._escaped_fragment_;
+})();
 NodeOsBlog.controller('BlogSingleCtrl', function ($scope, $http) {
-  $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash;
+  if(!num) return;
+  $scope.uriPath = "/NodeOS/NodeOS/issues/"+num;
   $scope.user = user;
   $scope.blog = [];
   $scope.parseMarkdown = parseMarkdown;
+
+  var cached = localStorage.getItem("issue-"+num);
+  if(cached){
+    cached = JSON.parse(cached);
+    var d = new Date(cached.updated_at);
+    if(Date.now() - d.getTime() < 1000*60*60*24){
+      console.log("cached");
+      $scope.blog.push(cached);
+      return;
+    }
+  }
 
   var markdown = require("markdown").markdown;
   $scope.user.asAuthority('https://api.github.com/repos'+$scope.uriPath,function(uri){
@@ -293,6 +325,12 @@ NodeOsBlog.controller('BlogSingleCtrl', function ($scope, $http) {
         });
       }
       $scope.parseMarkdown(data,function(item){
+        item.date = Date.now();
+        try{
+          localStorage.setItem("issue-"+num,JSON.stringify(item));
+        }catch(e){
+          errors.push({name:"LocalStorage", message:"Cannot Store Anymore"});
+        }
         $scope.blog.push(item);
         $scope.$apply();
       });
@@ -306,17 +344,18 @@ NodeOsBlog.controller('BlogSingleCtrl', function ($scope, $http) {
   });
 });
 NodeOsBlog.controller('CommentListCtrl', function ($scope, $http) {
-  $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash+"/comments";
+  if(!num) return;
+  $scope.uriPath = "/NodeOS/NodeOS/issues/"+num+"/comments";
   $scope.user = user;
   $scope.blog = [];
   $scope.last = void(0);
   $scope.parseMarkdown = parseMarkdown;
-  $scope.loadMore = function(page){
-    if($scope.last && $scope.last < page) return;
+
+  $scope.loadMore = function(since){
     var i=0;
     var l=-1;
     $scope.user.asAuthority(
-      'https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=created&page='+page,
+      'https://api.github.com/repos'+$scope.uriPath+(since?'?since='+since:""),
       function(uri){
       $http.get(uri).success(function(data,status,headers) {
         if(!$scope.last) $scope.last =  headers.link?headers.link.split("=").pop():1;
@@ -326,7 +365,14 @@ NodeOsBlog.controller('CommentListCtrl', function ($scope, $http) {
           $scope.blog.push(item);
           $scope.$apply();
           i++;
-          if(i === l) return;
+          if(i === l){
+            try{
+              localStorage.setItem("issue-comments-"+num, JSON.stringify($scope.blog));
+            }catch(e){
+              errors.push({name:"LocalStorage", message:"Cannot Store Anymore"});
+            }
+            return;
+          }
           $scope.parseMarkdown(data[i],iterator);
         };
         $scope.parseMarkdown(data[0],iterator);
@@ -339,7 +385,28 @@ NodeOsBlog.controller('CommentListCtrl', function ($scope, $http) {
       });
     });
   };
-  $scope.loadMore(1);
+  var lastdate;
+  var cached = localStorage.getItem("issue-comments-"+num);
+  if(cached){
+    console.log("cached");
+    cached = JSON.parse(cached);
+    var i = 0;
+    var l = cached.length;
+    var iterator = function(item){
+      $scope.blog.push(item);
+      i++;
+      if(i === l){
+        var d = new Date(cached[i-1].created_at);
+        d.setSeconds(d.getSeconds() + 1);
+        d = d.toISOString();
+        return $scope.loadMore(d);
+      }
+      setTimeout(iterator.bind(void(0),cached[i]),1);
+    };
+    iterator(cached[0]);
+  }else{
+    $scope.loadMore();
+  }
 });
 </script>
 <!-- END: BIND DATA TO VIEW -->

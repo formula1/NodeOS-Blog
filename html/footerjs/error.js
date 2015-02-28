@@ -18,6 +18,13 @@ function add403(){
   errors.push(topush);
 }
 
+function add404(){
+  errors.push({
+    name: "Your in the wrong place my friend.",
+    message: "<a href='/'>Heres a hand, we'll get you back on the right track</a>"
+  });
+}
+
 NodeOsBlog.controller('ErrorListCtrl', function($scope){
   $scope.removeError = function(error){
     var l = errors.length;

@@ -8,7 +8,7 @@
 <script type="text/javascript" src="/api.min.js" ></script>
 <style>
   #articles img{max-width:100%}
-  #articles article .title img{width:100px}
+  #articles article .title img{height:50px}
 </style>
 </head>
 <body>
@@ -56,7 +56,7 @@
     <div class="col-sm-8 col-sm-offset-2">
       <header class="{{item.state}}">
         <h3 class="title">
-          <a href="article.html#{{item.number}}">
+          <a href="article.html#!{{item.number}}">
             {{item.title}}
           </a>
         </h3>
@@ -64,7 +64,7 @@
       </header>
       <div class="content" ng-bind-html="item.bodyHTML | to_trusted"></div>
       <footer>
-        <a href="http://node-os.com/blog/{{item.number}}" class="comments">
+        <a href="article.html#!{{item.number}}" class="comments">
           There are {{item.comments}} comments.
         </a>
       </footer>
@@ -139,6 +139,13 @@ function add403(){
     "<button onclick='user.login()'>Log in</button>";
   }
   errors.push(topush);
+}
+
+function add404(){
+  errors.push({
+    name: "Your in the wrong place my friend.",
+    message: "<a href='/'>Heres a hand, we'll get you back on the right track</a>"
+  });
 }
 
 NodeOsBlog.controller('ErrorListCtrl', function($scope){
@@ -264,14 +271,13 @@ NodeOsBlog.controller('BlogListCtrl', function ($scope, $http) {
   $scope.blog = [];
   $scope.last = void(0);
   $scope.parseMarkdown = parseMarkdown;
-  $scope.loadMore = function(page){
+  $scope.loadMore = function(since){
     if($scope.last && $scope.last < page) return;
     var i=0;
     var l=-1;
     $scope.user.asAuthority(
-      'https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=updated&page='+page,
+      'https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=updated'+(since?'&since='+since:""),
       function(uri){
-console.log("uri");
       $http.get(uri).success(function(data,status,headers) {
         console.log(headers);
         console.log(headers.link);
@@ -283,7 +289,14 @@ console.log("uri");
           $scope.blog.push(item);
           $scope.$apply();
           i++;
-          if(i === l) return;
+          if(i === l){
+            try{
+              localStorage.setItem("issue-list-"+num, JSON.stringify($scope.blog));
+            }catch(e){
+              errors.push({name:"LocalStorage", message:"Cannot Store Anymore"});
+            }
+            return;
+          }
           $scope.parseMarkdown(data[i],iterator);
         };
         $scope.parseMarkdown(data[0],iterator);
@@ -296,7 +309,27 @@ console.log("uri");
       });
     });
   };
-  $scope.loadMore(1);
+  var lastdate;
+  var cached = localStorage.getItem("issue-list");
+  if(cached){
+    cached = JSON.parse(cached);
+    var i = 0;
+    var l = cached.length;
+    var iterator = function(item){
+      $scope.blog.push(item);
+      i++;
+      if(i === l){
+        var d = new Date(cached[i-1].updated_at);
+        d.setSeconds(d.getSeconds() + 1);
+        d = d.toISOString();
+        return $scope.loadMore(d);
+      }
+      setTimeout(iterator.bind(void(0),cached[i]),1);
+    };
+    iterator(cached[0]);
+  }else{
+    $scope.loadMore();
+  }
 });
 </script>
 <!-- END: BIND DATA TO VIEW -->
