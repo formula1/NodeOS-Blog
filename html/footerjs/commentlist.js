@@ -1,14 +1,14 @@
 NodeOsBlog.controller('CommentListCtrl', function ($scope, $http) {
   $scope.uriPath = "/NodeOS/NodeOS/issues/"+hash+"/comments";
+  $scope.user = user;
   $scope.blog = [];
   $scope.last = void(0);
-  $scope.uriAsAuthority = uriAsAuthority;
   $scope.parseMarkdown = parseMarkdown;
   $scope.loadMore = function(page){
     if($scope.last && $scope.last < page) return;
     var i=0;
     var l=-1;
-    $scope.uriAsAuthority(
+    $scope.user.asAuthority(
       'https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=created&page='+page,
       function(uri){
       $http.get(uri).success(function(data,status,headers) {

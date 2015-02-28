@@ -1,14 +1,14 @@
 NodeOsBlog.controller('BlogListCtrl', function ($scope, $http) {
   $scope.uriPath = "/NodeOS/NodeOS/issues";
+  $scope.user = user;
   $scope.blog = [];
   $scope.last = void(0);
-  $scope.uriAsAuthority = uriAsAuthority;
   $scope.parseMarkdown = parseMarkdown;
   $scope.loadMore = function(page){
     if($scope.last && $scope.last < page) return;
     var i=0;
     var l=-1;
-    $scope.uriAsAuthority(
+    $scope.user.asAuthority(
       'https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=updated&page='+page,
       function(uri){
 console.log("uri");
@@ -17,6 +17,7 @@ console.log("uri");
         console.log(headers.link);
         if(!$scope.last) $scope.last =  headers.link?headers.link.split("=").pop():1;
         l = data.length;
+        console.log(data.length);
         if(i === l) return; //No more
         var iterator = function(item){
           $scope.blog.push(item);

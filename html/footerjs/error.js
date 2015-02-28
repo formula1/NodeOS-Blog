@@ -1,16 +1,19 @@
 var errors = [];
+var has403 = false;
 
 function add403(){
+  if(has403) return;
+  has403 = true;
   var topush = {
     class:"four-zero-three",
     name:"You've hit max data"
   };
-  if(is_authed === 1){
+  if(user.isLoggedIn){
     topush.message = "Apparently, people have been using our app too much..."+
-    "<button onclick='login()'>Log in</button>";
+    "<button onclick='user.login()'>Log in</button>";
   }else{
     topush.message = "If you'd like to continue, please "+
-    "<button onclick='login()'>Log in</button>";
+    "<button onclick='user.login()'>Log in</button>";
   }
   errors.push(topush);
 }
@@ -32,7 +35,7 @@ NodeOsBlog.controller('ErrorListCtrl', function($scope){
 });
 /* */
 function parseMarkdown(item,next){
-  uriAsAuthority("https://api.github.com/markdown/raw",function(uri){
+  user.asAuthority("https://api.github.com/markdown/raw",function(uri){
     jQuery.ajax({
       url:uri,
       type:'POST',
@@ -42,7 +45,7 @@ function parseMarkdown(item,next){
       data:item.body
     }).done(function(data){
       item.bodyHTML = data;
-    }).fail(function(response, type, title, config) {
+    }).fail(function(response, textStatus,data) {
       if(response.status === 403){
         add403();
       }else{

@@ -1,0 +1,3 @@
+[submodule "AuthProvider"]
+	path = AuthProvider
+	url = git@github.com:formula1/AuthProvider.git
