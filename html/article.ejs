@@ -1,8 +1,9 @@
 <%
   cur_page["head"] = include("parts/head.html");
-  cur_page["body"] = include("parts/error.html");
-  cur_page["body"] += "\n"+include("parts/blogsingle.html");
-  cur_page["body"] += "\n"+include("parts/commentlist.html");
+  cur_page["body"] = include("parts/error.html")
+    + "\n"+include("parts/westoredata.html")
+    + "\n"+include("parts/blogsingle.html")
+    + "\n"+include("parts/commentlist.html");
   cur_page["foot"] = include("footerjs/cacheOrLoad.js")
   + "\n"+include("footerjs/utility.js")
     + "\n"+include("footerjs/error.js")

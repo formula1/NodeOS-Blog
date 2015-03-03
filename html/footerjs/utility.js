@@ -1,4 +1,11 @@
 
+jQuery(function($){
+  $("#westoredata>p a").click(function(e){
+    e.preventDefault();
+    $("#westoredata>div .more").toggle();
+  });
+});
+
 function Template(template,contain,unique){
   this.template = Handlebars.compile(jQuery(template).html());
   this.contain = jQuery(contain);
@@ -21,9 +28,9 @@ Template.prototype.add = function(item){
   this.contain.append(this.template(item));
 };
 
-Template.prototype.remove = function(item){
-  console.log(item);
-  var art = $(item).closest("article");
+Template.prototype.remove = function(e){
+  e.preventDefault();
+  var art = $(this).closest("article");
   var u = art.attr("data-unique");
   if(u){
     this.unique[u] = false;
