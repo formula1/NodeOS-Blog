@@ -4,10 +4,11 @@ var fs = require("fs");
 
 var b = browserify();
 b.require("./AuthProvider", {expose:"AuthProvider"});
-b.require("markdown");
+//b.require("markdown");
 b.require(__dirname+"/node_modules/highlight.js/lib/index.js", {expose:"highlight"});
 b.require("querystring");
-b.require("url");
+//b.require("url");
+b.require("async");
 b.bundle(function(e,buff){
   if(e) throw e;
   var min = UglifyJS.parse(buff.toString("utf-8"));

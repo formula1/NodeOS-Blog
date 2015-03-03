@@ -4,7 +4,7 @@
   <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" />
   <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-theme.min.css" />
   <link rel="stylesheet" href="http://node-os.com/css/default.css" />
-  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular.min.js"></script>
+  <script type="application/javascript" src="http://cloud.github.com/downloads/wycats/handlebars.js/handlebars-1.0.0.beta.6.js"></script>
 <script type="text/javascript" src="/api.min.js" ></script>
 <style>
   #articles img{max-width:100%}
@@ -34,43 +34,47 @@
   </header>
 <!-- START: ISSUES ITEM TEMPLATE -->
 <section ng-app="NodeOsBlog"  id="articles" class="section">
-  <div class="container" ng-controller="ErrorListCtrl" >
-  <article ng-repeat="(index, error) in errors" class="row">
-    <div class="col-sm-8 col-sm-offset-2 {{error.class}}" >
+  <div class="container error">
+</div>
+<script  type="text/html" class="template error">
+  <article class="row" data-unique="{{unique}}">
+    <div class="col-sm-8 col-sm-offset-2 {{class}}" >
       <header class="alert alert-danger" role="alert">
-        <h3 class="title">{{error.name}}</h3>
-        <p ng-mousedown="removeError(error)" > To remove this message, click here</p>
+        <h3 class="title">{{name}}</h3>
+        <a href="#" class="remove" > To remove this message, click here</a>
       </header>
-      <div class="content" ng-bind-html="error.message | to_trusted"></div>
+      <div class="content">{{{message}}}</div>
       <footer>
         Don't worry, it probably was not your fault... probably....
-        <br/><br/>
+        <br/>
         Even if it was,
         <a target="_blank" href="https://github.com/formula1/NodeOS-Blog/issues" >just submit an issue :)</a>
       </footer>
     </div>
   </article>
+</script>
+<div class="container bloglist">
 </div>
-<div class="container" ng-controller="BlogListCtrl" >
-  <article ng-repeat="item in blog" class="row">
-    <div class="col-sm-8 col-sm-offset-2">
-      <header class="{{item.state}}">
-        <h3 class="title">
-          <a href="article.html#!{{item.number}}">
-            {{item.title}}
+<script type="text/html" class="template bloglist">
+    <article class="row">
+      <div class="col-sm-8 col-sm-offset-2">
+        <header class="{{state}}">
+          <h3 class="title">
+            <a href="article.html#!{{number}}">
+              {{title}}
+            </a>
+          </h3>
+          <a href="{{html_url}}">View on Github</a>
+        </header>
+        <div class="content">{{{bodyHTML}}}</div>
+        <footer>
+          <a href="article.html#!{{number}}" class="comments">
+            There are {{comments}} comments.
           </a>
-        </h3>
-        <a href="{{item.html_url}}">View on Github</a>
-      </header>
-      <div class="content" ng-bind-html="item.bodyHTML | to_trusted"></div>
-      <footer>
-        <a href="article.html#!{{item.number}}" class="comments">
-          There are {{item.comments}} comments.
-        </a>
-      </footer>
-    </div>
-  </article>
-</div>
+        </footer>
+      </div>
+    </article>
+</script>
 </section>
 <!-- END: ISSUES ITEM TEMPLATE -->
 
@@ -115,97 +119,90 @@
 <script type="text/javascript" src="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js" ></script>
 <!-- START: BIND DATA TO VIEW -->
 <script type="text/javascript">
-  var NodeOsBlog = angular.module('NodeOsBlog', []);
-NodeOsBlog.filter('to_trusted', ['$sce', function($sce){
-      return function(text) {
-          return $sce.trustAsHtml(text);
-      };
-}]);
-var errors = [];
-var has403 = false;
+  var async = require("async");
 
-function add403(){
-  if(has403) return;
-  has403 = true;
-  var topush = {
-    class:"four-zero-three",
-    name:"You've hit max data"
-  };
-  if(user.isLoggedIn){
-    topush.message = "Apparently, people have been using our app too much..."+
-    "<button onclick='user.login()'>Log in</button>";
-  }else{
-    topush.message = "If you'd like to continue, please "+
-    "<button onclick='user.login()'>Log in</button>";
+var in_memory = {};
+
+function cacheOrUriIterator(cachename, itemCBs){
+  var cached = localStorage.getItem(cachename);
+  if(!cached || cached === "undefined" || cached === "[]" ){
+    in_memory[cachename] = [];
+    return UriIterator(cachename, void(0), itemCBs);
   }
-  errors.push(topush);
-}
-
-function add404(){
-  errors.push({
-    name: "Your in the wrong place my friend.",
-    message: "<a href='/'>Heres a hand, we'll get you back on the right track</a>"
+  console.log("cached");
+  cached = JSON.parse(cached);
+  if(!Array.isArray(cached)){
+    cached = [cached];
+  }
+  async.eachSeries(cached,
+    itemCBs.ready,
+  function(e,results){
+    in_memory[cachename] = cached;
+    UriIterator(cachename, cached[cached.length - 1].timestamp, itemCBs);
   });
 }
 
-NodeOsBlog.controller('ErrorListCtrl', function($scope){
-  $scope.removeError = function(error){
-    var l = errors.length;
-    while(l--){
-      if(errors[l] == error) return errors.splice(l,1);
-    }
-  };
-  $scope.errors = errors;
-  var oldwinerr = window.onerror;
-  window.onerror = function ( message, filename, lineno, colno, error ){
-    if ( error !== undefined && error.hasOwnProperty( "name" ) && error.name == "Magic"){
-      errors.push({name:"Uncaught Error: "+error.name, message: message+"<pre>"+error.stack+"</pre>"});
-    }
-  };
-});
-/* */
-function parseMarkdown(item,next){
-  user.asAuthority("https://api.github.com/markdown/raw",function(uri){
-    jQuery.ajax({
-      url:uri,
-      type:'POST',
-      headers: {
-          'Content-Type': 'text/plain'
-      },
-      data:item.body
-    }).done(function(data){
-      item.bodyHTML = data;
-    }).fail(function(response, textStatus,data) {
-      if(response.status === 403){
-        add403();
-      }else{
-        errors.push({name:"Bad markdown call: "+response.status, message: data.message});
+function UriIterator(cachename, timestamp, itemCBs){
+  itemCBs.timestamp2URI(timestamp,function(uri){
+    jQuery.get(uri).done(function(data){
+      console.log(Array.isArray(data));
+      if(!Array.isArray(data)){
+        data = [data];
       }
-      item.bodyHTML = "<pre>"+item.body+"</pre>";
-    }).always(function(){
-      next(item);
-    });
+      async.eachSeries(data, function(item,next){
+        itemCBs.prep(item,function(item){
+          itemCBs.ready(item, next);
+        });
+      },function(err,results){
+        if(err) return itemCBs.error(err);
+        in_memory[cachename] = in_memory[cachename].concat(data);
+        try{
+          localStorage.setItem( cachename,JSON.stringify(in_memory[cachename]) );
+        }catch(e){
+          return itemCBs.error(e);
+        }
+        if(data.length === 0){
+          itemCBs.done(timestamp);
+        }else{
+          itemCBs.done(data[data.length -1].timestamp);
+        }
+      });
+    }).fail(itemCBs.error);
   });
 }
-
-/*
-var markdown = require("markdown").markdown;
-function parseMarkdown(item,next){
-  console.log("parsing");
-
-  try{
-    var t = jQuery("<div>"+markdown.toHTML(item.body)+"</div>");
-    t.find("code").wrap("<pre></pre>");
-
-    item.bodyHTML = t.html();
-    console.log(item.bodyHTML);
-  }catch(e){
-    console.log(e);
-    item.bodyHTML = "<pre>"+item.body+"</pre>";
+function Template(template,contain,unique){
+  this.template = Handlebars.compile(jQuery(template).html());
+  this.contain = jQuery(contain);
+  this.unique = {};
+  if(Array.isArray(unique)){
+    var l = unique.length;
+    while(l--){
+      this.unique[unique[l]] = false;
+    }
   }
-  setTimeout(next.bind(next,item),1);
+  this.contain.find(".remove").on("click",this.remove.bind(this));
 }
-/* */
+
+Template.prototype.add = function(item){
+  if(item.class && typeof this.unique[item.class] != "undefined"){
+    if(this.unique[item.class]) return;
+    this.unique[item.class] = true;
+  }
+  console.log("appending");
+  this.contain.append(this.template(item));
+};
+
+Template.prototype.remove = function(item){
+  console.log(item);
+  var art = $(item).closest("article");
+  var u = art.attr("data-unique");
+  if(u){
+    this.unique[u] = false;
+  }
+  art.remove();
+};
+
+
 function compileYQL(query){
   if(Array.isArray(query)){
     query = query.join(";");
@@ -237,6 +234,108 @@ function yql_access(yql_uri){
   };
 }
 
+
+/* */
+function parseMarkdown(item,next){
+  user.asAuthority("https://api.github.com/markdown/raw",function(uri){
+    jQuery.ajax({
+      url:uri,
+      type:'POST',
+      headers: {
+          'Content-Type': 'text/plain'
+      },
+      data:item.body
+    }).done(function(data){
+      item.bodyHTML = data;
+    }).fail(function(response, textStatus,data) {
+      if(response.status === 403){
+        add403();
+      }else{
+        addError({name:"Bad markdown call: "+response.status, message: data.message});
+      }
+      item.bodyHTML = "<pre>"+item.body+"</pre>";
+    }).always(function(){
+      next(item);
+    });
+  });
+}
+
+
+/*
+var markdown = require("markdown").markdown;
+function parseMarkdown(item,next){
+  console.log("parsing");
+
+  try{
+    var t = jQuery("<div>"+markdown.toHTML(item.body)+"</div>");
+    t.find("code").wrap("<pre></pre>");
+
+    item.bodyHTML = t.html();
+    console.log(item.bodyHTML);
+  }catch(e){
+    console.log(e);
+    item.bodyHTML = "<pre>"+item.body+"</pre>";
+  }
+  setTimeout(next.bind(next,item),1);
+}
+/* */
+
+
+function ISOplus1(iso){
+  var d = new Date(iso);
+  d.setSeconds(d.getSeconds() + 1);
+  return d.toISOString();
+}
+var errorHandler;
+jQuery(function($){
+  errorHandler = new Template(
+    "script.template.error",
+    "div.container.error",
+    ["four-zero-three"]
+  );
+  var oldwinerr = window.onerror;
+  window.onerror = function ( message, filename, lineno, colno, error ){
+    if ( error !== undefined && error.hasOwnProperty( "name" ) && error.name == "Magic"){
+      errorHandler.add({
+        name:"Uncaught Error: "+error.name,
+        message: message+"<pre>"+error.stack+"</pre>"
+      });
+    }
+    if(oldwinerr){
+      oldwinerr(message, filename, lineno, colno, error );
+    }
+  };
+});
+
+function addError(error){
+  if(error.status){
+    errorHandler.add({name:"Ajax: "+error.status, message:error.responseText});
+  }else{
+    errorHandler.add({name:error.name, message:error.stack});
+  }
+}
+
+function add403(){
+  var topush = {
+    class:"four-zero-three",
+    name:"You've hit max data"
+  };
+  if(user.isLoggedIn){
+    topush.message = "Apparently, people have been using our app too much..."+
+    "<button onclick='user.login()'>Log in</button>";
+  }else{
+    topush.message = "If you'd like to continue, please "+
+    "<button onclick='user.login()'>Log in</button>";
+  }
+  errorHandler.add(topush);
+}
+
+function add404(){
+  errorHandler.add({
+    name: "Your in the wrong place my friend.",
+    message: "<a href='/'>Heres a hand, we'll get you back on the right track</a>"
+  });
+}
 var config = {
   cid: "dafb27cb88db35267e75",
   yqluri: "store://gdDAnJkTXAuVgzAQ8wboA2"
@@ -249,14 +348,14 @@ window.user = new AuthProvider(
   yql_access(config.yqluri)
 );
 user.on("parse-error",function(e){
-  errors.push({
+  addError({
     class:"four-zero-three",
     name:"You've failed authorization",
     message: e
   });
 });
 user.on("access-error",function(e){
-  errors.push({
+  addError({
     class:"four-zero-three",
     name:"You've failed authorization",
     message: "You can always try again"
@@ -265,71 +364,48 @@ user.on("access-error",function(e){
 user.on("access-success",function(token){
   jQuery(".four-zero-three .content").text("You've authenticated!");
 });
-NodeOsBlog.controller('BlogListCtrl', function ($scope, $http) {
-  $scope.uriPath = "/NodeOS/NodeOS/issues";
-  $scope.user = user;
-  $scope.blog = [];
-  $scope.last = void(0);
-  $scope.parseMarkdown = parseMarkdown;
-  $scope.loadMore = function(since){
-    if($scope.last && $scope.last < page) return;
-    var i=0;
-    var l=-1;
-    $scope.user.asAuthority(
-      'https://api.github.com/repos'+$scope.uriPath+'?labels=blog&sort=updated'+(since?'&since='+since:""),
-      function(uri){
-      $http.get(uri).success(function(data,status,headers) {
-        console.log(headers);
-        console.log(headers.link);
-        if(!$scope.last) $scope.last =  headers.link?headers.link.split("=").pop():1;
-        l = data.length;
-        console.log(data.length);
-        if(i === l) return; //No more
-        var iterator = function(item){
-          $scope.blog.push(item);
-          $scope.$apply();
-          i++;
-          if(i === l){
-            try{
-              localStorage.setItem("issue-list-"+num, JSON.stringify($scope.blog));
-            }catch(e){
-              errors.push({name:"LocalStorage", message:"Cannot Store Anymore"});
-            }
-            return;
-          }
-          $scope.parseMarkdown(data[i],iterator);
-        };
-        $scope.parseMarkdown(data[0],iterator);
-      }).error(function(data, status, headers, config) {
-        if(status === 403){
+var listHandler;
+
+jQuery(function($){
+  listHandler = new Template(
+    "script.template.bloglist",
+    "div.container.bloglist"
+  );
+  listHandler._x = {
+    uri: "https://api.github.com/repos/NodeOS/NodeOS/issues?labels=blog&sort=updated",
+    last: void(0)
+  };
+  cacheOrUriIterator(
+    "issue-list",
+    {
+      timestamp2URI: function(timestamp,next){
+        var uri = listHandler._x.uri;
+        if(timestamp) {
+          var temp = new Date(timestamp+1000);
+          uri += "&since="+(new Date(timestamp+1000)).toISOString();
+        }
+        user.asAuthority(uri,next);
+      },
+      prep: function(item, next){
+        item.timestamp = (new Date(item.updated_at)).getTime();
+        parseMarkdown(item,next);
+      },
+      ready: function(item,next){
+        listHandler.add(item);
+        setTimeout(next,1);
+      },
+      done: function(date){
+        listHandler._x.last = date;
+      },
+      error: function(error){
+        if(error.status && error.status === 403){
           add403();
         }else{
-          errors.push({name:"Bad issues list request: "+status, message: data.message});
+          addError(error);
         }
-      });
-    });
-  };
-  var lastdate;
-  var cached = localStorage.getItem("issue-list");
-  if(cached){
-    cached = JSON.parse(cached);
-    var i = 0;
-    var l = cached.length;
-    var iterator = function(item){
-      $scope.blog.push(item);
-      i++;
-      if(i === l){
-        var d = new Date(cached[i-1].updated_at);
-        d.setSeconds(d.getSeconds() + 1);
-        d = d.toISOString();
-        return $scope.loadMore(d);
       }
-      setTimeout(iterator.bind(void(0),cached[i]),1);
-    };
-    iterator(cached[0]);
-  }else{
-    $scope.loadMore();
-  }
+    }
+  );
 });
 </script>
 <!-- END: BIND DATA TO VIEW -->

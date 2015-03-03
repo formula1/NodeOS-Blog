@@ -3,7 +3,8 @@
   cur_page["body"] = include("parts/error.html");
   cur_page["body"] += "\n"+include("parts/blogsingle.html");
   cur_page["body"] += "\n"+include("parts/commentlist.html");
-  cur_page["foot"] = include("footerjs/base.js")
+  cur_page["foot"] = include("footerjs/cacheOrLoad.js")
+  + "\n"+include("footerjs/utility.js")
     + "\n"+include("footerjs/error.js")
     + "\n"+include("footerjs/user.js")
     + "\n"+include("footerjs/blogsingle.js")
