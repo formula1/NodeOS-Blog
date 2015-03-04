@@ -53,24 +53,21 @@ ob.compileJS = function compileJS(inputrequire, outputdir,next){
   while(l--){
     var item = inputrequire[l];
     if(typeof item === "string"){
-      return b.require(item);
+      b.require(item);
+      continue;
     }
-    if(!item.name){
+    if(!item.path){
       return next("when specifying something to require, "+
         "\n\t you must provide a valid string or"+
         "\n\t you must provide an object with {path:\"valid path or name\"}");
     }
     b.require(item.path, item.options);
+    inputrequire[l] = item.path;
   }
-  b.require("./AuthProvider", {expose:"AuthProvider"});
-  //b.require("markdown");
-  b.require(__dirname+"/node_modules/highlight.js/lib/index.js", {expose:"highlight"});
-  b.require("querystring");
-  b.require("async");
   b.bundle(function(e,buff){
     if(e) return next(e);
     async.parallel([
-      function(){
+      function(next){
         fs.writeFile(
           outputdir+"/api.js",
           buff,
@@ -96,12 +93,14 @@ ob.compileJS = function compileJS(inputrequire, outputdir,next){
 };
 
 ob.compileAll = function compileAll(inputs, templatepath, outputdir, next){
+  console.log("compiling all");
   async.parallel([
     ob.compileHTML.bind(void(0),inputs.dir, templatepath, outputdir),
     ob.compileJS.bind(void(0),inputs.require, outputdir)
   ],function(e,results){
     if(e) return next(e);
     var net = [];
+    console.log(results);
     var l = results.length;
     while(l--){
       net = net.concat(results[l]);
@@ -121,8 +120,6 @@ if(!module.parent){
     ],
     dir:__dirname+"/html/input"
   };
-  //  git@github.com:NodeOS/GitBlog.git
-
   ob.compileAll(
     inputs,
     __dirname+"/html/template.ejs",
