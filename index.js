@@ -1,11 +1,15 @@
 var browserify = require("browserify");
 var UglifyJS = require("uglify-js");
 var fs = require("fs");
+var path = require("path");
 var async = require("async");
 var ejs = require('ejs');
 
-module.exports.compileHTML = function compileHTML(inputdir, templatepath, outputdir, next){
-  fs.readdir(pagepath,function(e,files){
+var ob = module.exports = {};
+//  git@github.com:NodeOS/GitBlog.git
+
+ob.compileHTML = function compileHTML(inputdir, templatepath, outputdir, next){
+  fs.readdir(inputdir,function(e,files){
     if(e) return next(e);
     async.each(files,function(file,next){
       var input = inputdir+"/"+file;
@@ -20,7 +24,8 @@ module.exports.compileHTML = function compileHTML(inputdir, templatepath, output
           input,
           {
             cur_page:{},
-            templatepath:templatepath
+            templatepath:templatepath,
+            htmlpath:path.resolve(templatepath, "../")
           },
           function(e,file){
             if(e) return next(e);
@@ -37,12 +42,12 @@ module.exports.compileHTML = function compileHTML(inputdir, templatepath, output
             );
           }
         );
-      })
+      });
     },next);
   });
 };
 
-module.exports.compileJS = function compileJS(inputrequire, outputdir,next){
+ob.compileJS = function compileJS(inputrequire, outputdir,next){
   var b = browserify();
   var l = inputrequire.length;
   while(l--){
@@ -64,7 +69,7 @@ module.exports.compileJS = function compileJS(inputrequire, outputdir,next){
   b.require("async");
   b.bundle(function(e,buff){
     if(e) return next(e);
-    async.parrallel([
+    async.parallel([
       function(){
         fs.writeFile(
           outputdir+"/api.js",
@@ -90,10 +95,10 @@ module.exports.compileJS = function compileJS(inputrequire, outputdir,next){
   });
 };
 
-module.exports.compile = function(inputs, templatepath, outputdir, next){
-  async.parrallel([
-    compileHTML.bind(void(0),inputs.dir, templatepath, outputdir),
-    compileJS.bind(void(0),inputs.require, outputdir)
+ob.compileAll = function compileAll(inputs, templatepath, outputdir, next){
+  async.parallel([
+    ob.compileHTML.bind(void(0),inputs.dir, templatepath, outputdir),
+    ob.compileJS.bind(void(0),inputs.require, outputdir)
   ],function(e,results){
     if(e) return next(e);
     var net = [];
@@ -114,6 +119,16 @@ if(!module.parent){
       "async",
 //    "markdown"
     ],
-    dir:__dirname+"/html"
+    dir:__dirname+"/html/input"
   };
+  //  git@github.com:NodeOS/GitBlog.git
+
+  ob.compileAll(
+    inputs,
+    __dirname+"/html/template.ejs",
+    __dirname+ "/dist",
+    function(e,results){
+    if(e) throw e;
+    console.log(results);
+  });
 }
