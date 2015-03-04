@@ -39,6 +39,7 @@ function UriIterator(cachename, timestamp, itemCBs){
         }catch(e){
           return itemCBs.error(e);
         }
+        delete in_memory[cachename];
         if(data.length === 0){
           itemCBs.done(timestamp);
         }else{
