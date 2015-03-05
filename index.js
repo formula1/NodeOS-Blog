@@ -112,7 +112,7 @@ ob.compileAll = function compileAll(inputs, templatepath, outputdir, next){
 if(!module.parent){
   var inputs = {
     require:[
-      {path:"./AuthProvider", options:{expose:"AuthProvider"}},
+      "auth-provider",
       {path:__dirname+"/node_modules/highlight.js/lib/index.js", options:{expose:"highlight"}},
       "querystring",
       "async",
