@@ -1,5 +1,4 @@
 var browserify = require("browserify");
-var UglifyJS = require("uglify-js");
 var fs = require("fs");
 var path = require("path");
 var async = require("async");
@@ -48,55 +47,49 @@ ob.compileHTML = function compileHTML(inputdir, templatepath, outputdir, next){
 };
 
 ob.compileJS = function compileJS(inputrequire, outputdir,next){
-  var b = browserify();
-  var l = inputrequire.length;
-  while(l--){
-    var item = inputrequire[l];
-    if(typeof item === "string"){
-      b.require(item);
-      continue;
-    }
-    if(!item.path){
-      return next("when specifying something to require, "+
-        "\n\t you must provide a valid string or"+
-        "\n\t you must provide an object with {path:\"valid path or name\"}");
-    }
-    b.require(item.path, item.options);
-    inputrequire[l] = item.path;
-  }
-  b.bundle(function(e,buff){
-    if(e) return next(e);
-    async.parallel([
-      function(next){
-        fs.writeFile(
-          outputdir+"/api.js",
-          buff,
-          function(e){
-            if(e) return next(e);
-            next(void(0), {input:inputrequire,output:outputdir+"/api.js"});
-          }
-        );
-      },function(next){
-        var min = UglifyJS.parse(buff.toString("utf-8"));
-        min.figure_out_scope();
-        fs.writeFile(
-          outputdir+"/api.min.js",
-          min.print_to_string(),
-          function(e){
-            if(e) return next(e);
-            next(void(0), {input:inputrequire,output:outputdir+"/api.min.js"});
-          }
-        );
+  var createBundle = function(inputrequire){
+    var b =   browserify();
+    var l = inputrequire.length;
+    inputrequire = inputrequire.map(function(item){
+      if(typeof item === "string"){
+        b.require(path.normalize(item));
+        return;
       }
-    ],next);
-  });
+      if(!item.path){
+        throw new Error("when specifying something to require, "+
+          "\n\t you must provide a valid string or"+
+          "\n\t you must provide an object with {path:\"valid path or name\"}");
+      }
+      b.require(path.normalize(item.path), item.options);
+      return item.path;
+    })
+    return b;
+  }
+  async.parallel([
+    function(next){
+      createBundle(inputrequire).bundle()
+      .pipe(fs.createWriteStream(outputdir+"/api.js"))
+      .on("end",function(){
+        next(void(0), {input:inputrequire,output:outputdir+"/api.js"});
+      }).on("error",next)
+    },function(next){
+      createBundle(inputrequire).transform({
+        global: true
+      }, 'uglifyify')
+      .bundle()
+      .pipe(fs.createWriteStream(outputdir+"/api.min.js"))
+      .on("end",function(){
+        next(void(0), {input:inputrequire,output:outputdir+"/api.min.js"});
+      }).on("error",next);
+    }
+  ],next);
 };
 
 ob.compileAll = function compileAll(inputs, templatepath, outputdir, next){
   console.log("compiling all");
   async.parallel([
-    ob.compileHTML.bind(void(0),inputs.dir, templatepath, outputdir),
-    ob.compileJS.bind(void(0),inputs.require, outputdir)
+    ob.compileHTML.bind(ob,inputs.dir, templatepath, outputdir),
+    ob.compileJS.bind(ob,inputs.require, outputdir)
   ],function(e,results){
     if(e) return next(e);
     var net = [];
@@ -114,7 +107,6 @@ if(!module.parent){
     require:[
       "auth-provider",
       {path:__dirname+"/node_modules/highlight.js/lib/index.js", options:{expose:"highlight"}},
-      "querystring",
       "async",
 //    "markdown"
     ],

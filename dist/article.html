@@ -5,12 +5,13 @@
   <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-theme.min.css" />
   <link rel="stylesheet" href="http://node-os.com/css/default.css" />
   <script type="application/javascript" src="http://cloud.github.com/downloads/wycats/handlebars.js/handlebars-1.0.0.beta.6.js"></script>
-<script type="text/javascript" src="/api.min.js" ></script>
+<script type="text/javascript" src="api.js" ></script>
 <style>
   .more {display:none}
   #articles img{max-width:100%}
   #articles article .title img{height:50px}
 </style>
+
 </head>
 <body>
   <header class="navbar navbar-default navbar-fixed-top" role="navigation">
@@ -42,18 +43,21 @@
     <div class="col-sm-8 col-sm-offset-2 {{class}}" >
       <header class="alert alert-danger" role="alert">
         <h3 class="title">{{name}}</h3>
-        <a href="#" class="remove" > To remove this message, click here</a>
       </header>
       <div class="content">{{{message}}}</div>
-      <footer>
+      <div>
         Don't worry, it probably was not your fault... probably....
         <br/>
         Even if it was,
-        <a target="_blank" href="https://github.com/formula1/NodeOS-Blog/issues" >just submit an issue :)</a>
+        <a target="_blank" href="https://github.com/NodeOS/GitBlog/issues" >just submit an issue :)</a>
+      </div>
+      <footer>
+        <a class="remove btn btn-danger  btn-xs" >Remove this message</a>
       </footer>
     </div>
   </article>
 </script>
+
 <div  id="westoredata" class="jumbotron">
   <h1>We store data on your computer</h1>
   <div>
@@ -81,6 +85,7 @@
   </div>
   <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more</a></p>
 </div>
+
 <div class="container blogsingle" >
 </div>
 <script type="text/html" class="template blogsingle" >
@@ -98,6 +103,7 @@
     </div>
   </article>
 </script>
+
 <div class="container comments" >
 </div>
 <script type="text/html" class="template comments">
@@ -116,6 +122,7 @@
     </div>
   </article>
 </script>
+
 </section>
 <!-- END: ISSUES ITEM TEMPLATE -->
 
@@ -161,8 +168,21 @@
 <!-- START: BIND DATA TO VIEW -->
 <script type="text/javascript">
   var async = require("async");
+var version = 1;
+var userversion = localStorage.getItem("cacheorUri-version");
+if(!userversion || userversion === "undefined" || userversion < version){
+  localStorage.clear();
+}
+localStorage.setItem("cacheorUri-version",version);
 
 var in_memory = {};
+
+function checkArrayOrder(ari){
+  return !ari || ari.length < 2?
+    "unk":
+    ari[0].timestamp < ari[ari.length -1].timestamp?
+      "asc":"desc";
+}
 
 function cacheOrUriIterator(cachename, itemCBs){
   var cached = localStorage.getItem(cachename);
@@ -170,20 +190,16 @@ function cacheOrUriIterator(cachename, itemCBs){
     in_memory[cachename] = [];
     return UriIterator(cachename, void(0), itemCBs);
   }
-  console.log("cached");
   cached = JSON.parse(cached);
   if(!Array.isArray(cached)){
     cached = [cached];
   }
-  async.eachSeries(cached,
-    itemCBs.ready,
-  function(e,results){
-    in_memory[cachename] = cached;
-    UriIterator(cachename, cached[cached.length - 1].timestamp, itemCBs);
-  });
+  var order = checkArrayOrder(cached);
+  in_memory[cachename] = cached;
+  UriIterator(cachename, cached[cached.length - 1].timestamp, itemCBs,order);
 }
 
-function UriIterator(cachename, timestamp, itemCBs){
+function UriIterator(cachename, timestamp, itemCBs, order){
   itemCBs.timestamp2URI(timestamp,function(uri){
     jQuery.get(uri).done(function(data){
       if(!Array.isArray(data)){
@@ -191,26 +207,48 @@ function UriIterator(cachename, timestamp, itemCBs){
       }
       async.eachSeries(data, function(item,next){
         itemCBs.prep(item,function(item){
-          itemCBs.ready(item, next);
+          next();
         });
       },function(err,results){
         if(err) return itemCBs.error(err);
-        in_memory[cachename] = in_memory[cachename].concat(data);
+        var doublecheck_order = checkArrayOrder(data)
+        if(order != "unk"){
+          if(order != doublecheck_order && doublecheck_order != "unk"){
+            in_memory[cachename].sort(function(a,b){
+              return doublecheck_order=="asc"?
+                a.timestamp-b.timestamp:
+                b.timestamp-a.timestamp;
+            });
+            order = doublecheck_order;
+          }
+        }else if(doublecheck_order == "unk"){
+          order = "asc";
+        }
+
+        var temp = order=="asc"?
+          in_memory[cachename].concat(data):
+          data.concat(in_memory[cachename]);
+        delete in_memory[cachename];
         try{
-          localStorage.setItem( cachename,JSON.stringify(in_memory[cachename]) );
+          localStorage.setItem( cachename,JSON.stringify(temp) );
         }catch(e){
           return itemCBs.error(e);
         }
-        delete in_memory[cachename];
-        if(data.length === 0){
-          itemCBs.done(timestamp);
-        }else{
-          itemCBs.done(data[data.length -1].timestamp);
-        }
+        async.eachSeries(temp, function(item,next){
+          itemCBs.ready(item, next);
+        },function(err,results){
+          if(data.length === 0){
+            itemCBs.done(timestamp);
+          }else{
+            itemCBs.done(data[data.length -1].timestamp);
+          }
+        });
       });
     }).fail(itemCBs.error);
   });
 }
+
+
 function Template(template,contain,unique){
   this.template = Handlebars.compile(jQuery(template).html());
   this.contain = jQuery(contain);
@@ -221,7 +259,7 @@ function Template(template,contain,unique){
       this.unique[unique[l]] = false;
     }
   }
-  this.contain.find(".remove").on("click",this.remove.bind(this));
+  this.contain.find(".remove").on("click",this.remove);
 }
 
 Template.prototype.add = function(item){
@@ -230,7 +268,9 @@ Template.prototype.add = function(item){
     this.unique[item.class] = true;
   }
   console.log("appending");
-  this.contain.append(this.template(item));
+  item = jQuery(this.template(item));
+  item.find(".remove").on("click",this.remove);
+  this.contain.append(item);
 };
 
 Template.prototype.remove = function(e){
@@ -242,6 +282,8 @@ Template.prototype.remove = function(e){
   }
   art.remove();
 };
+
+
 jQuery(function($){
   $("#westoredata>p a").click(function(e){
     e.preventDefault();
@@ -306,7 +348,9 @@ function parseMarkdown(item,next){
     });
   });
 }
+
 var errorHandler;
+var queue =[];
 jQuery(function($){
   errorHandler = new Template(
     "script.template.error",
@@ -325,14 +369,18 @@ jQuery(function($){
       oldwinerr(message, filename, lineno, colno, error );
     }
   };
+  queue.forEach(errorHandler.add.bind(errorHandler));
 });
 
 function addError(error){
+  var e;
   if(error.status){
-    errorHandler.add({name:"Ajax: "+error.status, message:error.responseText});
+    e={name:"Ajax: "+error.status, message:error.responseText};
   }else{
-    errorHandler.add({name:error.name, message:error.stack});
+    e = {name:error.name, message:error.stack};
   }
+  if(!errorHandler) return queue.push(e);
+  errorHandler.add(e);
 }
 
 function add403(){
@@ -342,20 +390,25 @@ function add403(){
   };
   if(user.isLoggedIn){
     topush.message = "Apparently, people have been using our app too much..."+
-    "<button onclick='user.login()'>Log in</button>";
+    "<button class='btn btn-primary' onclick='user.login()'>Log in</button>";
   }else{
     topush.message = "If you'd like to continue, please "+
-    "<button onclick='user.login()'>Log in</button>";
+    "<button class='btn btn-primary' onclick='user.login()'>Log in</button>";
   }
+  if(!errorHandler) return queue.push(topush);
   errorHandler.add(topush);
 }
 
 function add404(){
-  errorHandler.add({
+  e = {
     name: "Your in the wrong place my friend.",
     message: "<a href='/'>Heres a hand, we'll get you back on the right track</a>"
-  });
+  };
+  if(!errorHandler) return queue.push(e);
+  errorHandler.add(e);
 }
+
+
 var config = {
   cid: "dafb27cb88db35267e75",
   yqluri: "store://gdDAnJkTXAuVgzAQ8wboA2"
@@ -363,16 +416,21 @@ var config = {
 
 var AuthProvider = require("auth-provider");
 
-window.user = new AuthProvider(
-  config.cid,
-  yql_access(config.yqluri)
-);
+AuthProvider.init({
+  github:{
+    client_id: config.cid,
+    access_retriever:yql_access(config.yqluri)
+  }
+});
+
+window.user = new AuthProvider();
 user.on("error",function(e){
   console.error(e);
 });
 user.on("login",function(token){
   jQuery(".four-zero-three .content").text("You've authenticated!");
 });
+
 var num = (function(){
   var temp = document.location.href.split("#!")[1];
   console.log(temp);
@@ -441,6 +499,8 @@ jQuery(function($){
     }
   );
 });
+
+
 var commentHandler;
 
 jQuery(function($){
@@ -484,7 +544,9 @@ jQuery(function($){
     }
   );
 });
+
 </script>
 <!-- END: BIND DATA TO VIEW -->
 </body>
 </html>
+

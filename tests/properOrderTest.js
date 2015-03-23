@@ -1,0 +1,9 @@
+localStorage.setItem("issue-list",
+  JSON.stringify(
+    JSON.parse(
+      localStorage.getItem(
+        "issue-list"
+      )
+    ).slice(1)
+  )
+);

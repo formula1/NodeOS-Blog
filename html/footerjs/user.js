@@ -6,10 +6,14 @@ var config = {
 
 var AuthProvider = require("auth-provider");
 
-window.user = new AuthProvider(
-  config.cid,
-  yql_access(config.yqluri)
-);
+AuthProvider.init({
+  github:{
+    client_id: config.cid,
+    access_retriever:yql_access(config.yqluri)
+  }
+});
+
+window.user = new AuthProvider();
 user.on("error",function(e){
   console.error(e);
 });

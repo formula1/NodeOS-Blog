@@ -1,4 +1,5 @@
 var errorHandler;
+var queue =[];
 jQuery(function($){
   errorHandler = new Template(
     "script.template.error",
@@ -17,14 +18,18 @@ jQuery(function($){
       oldwinerr(message, filename, lineno, colno, error );
     }
   };
+  queue.forEach(errorHandler.add.bind(errorHandler));
 });
 
 function addError(error){
+  var e;
   if(error.status){
-    errorHandler.add({name:"Ajax: "+error.status, message:error.responseText});
+    e={name:"Ajax: "+error.status, message:error.responseText};
   }else{
-    errorHandler.add({name:error.name, message:error.stack});
+    e = {name:error.name, message:error.stack};
   }
+  if(!errorHandler) return queue.push(e);
+  errorHandler.add(e);
 }
 
 function add403(){
@@ -34,17 +39,20 @@ function add403(){
   };
   if(user.isLoggedIn){
     topush.message = "Apparently, people have been using our app too much..."+
-    "<button onclick='user.login()'>Log in</button>";
+    "<button class='btn btn-primary' onclick='user.login()'>Log in</button>";
   }else{
     topush.message = "If you'd like to continue, please "+
-    "<button onclick='user.login()'>Log in</button>";
+    "<button class='btn btn-primary' onclick='user.login()'>Log in</button>";
   }
+  if(!errorHandler) return queue.push(topush);
   errorHandler.add(topush);
 }
 
 function add404(){
-  errorHandler.add({
+  e = {
     name: "Your in the wrong place my friend.",
     message: "<a href='/'>Heres a hand, we'll get you back on the right track</a>"
-  });
+  };
+  if(!errorHandler) return queue.push(e);
+  errorHandler.add(e);
 }

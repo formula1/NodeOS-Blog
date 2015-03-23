@@ -9,7 +9,7 @@ function Template(template,contain,unique){
       this.unique[unique[l]] = false;
     }
   }
-  this.contain.find(".remove").on("click",this.remove.bind(this));
+  this.contain.find(".remove").on("click",this.remove);
 }
 
 Template.prototype.add = function(item){
@@ -18,7 +18,9 @@ Template.prototype.add = function(item){
     this.unique[item.class] = true;
   }
   console.log("appending");
-  this.contain.append(this.template(item));
+  item = jQuery(this.template(item));
+  item.find(".remove").on("click",this.remove);
+  this.contain.append(item);
 };
 
 Template.prototype.remove = function(e){
