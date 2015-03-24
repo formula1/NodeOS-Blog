@@ -2148,12 +2148,7 @@ if(!userversion || userversion === "undefined" || userversion < version){
 }
 localStorage.setItem("cacheorUri-version",version);
 
-var checkArrayOrder = function(ari){
-  return !ari || ari.length < 2?
-    "unk":
-    ari[0].timestamp < ari[1].timestamp?
-      "asc":"desc";
-}
+var checkArrayOrder, reOrderAndConsolidate;
 
 
 module.exports = function(cachename, itemCBs){
@@ -2225,7 +2220,13 @@ function UriIterator(timestamp, itemCBs, next){
   });
 }
 
-module.exports.reOrderAndConsolidate = function reOrderAndConsolidate(cacheData,uriData){
+checkArrayOrder = module.exports.checkArrayOrder = function(ari){
+  return !ari || ari.length < 2?
+    "unk":
+    ari[0].timestamp < ari[1].timestamp?
+      "asc":"desc";
+}
+reOrderAndConsolidate = module.exports.reOrderAndConsolidate = function(cacheData,uriData){
   var cacheOrder = checkArrayOrder(cacheData)
   var uriOrder = checkArrayOrder(uriData)
   var order;

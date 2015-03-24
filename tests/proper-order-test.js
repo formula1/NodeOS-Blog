@@ -19,10 +19,10 @@ applyTests(
     }
     return list;
   },
-  function runAscTest(number){ //generate the local and foreign arrays;
+  function(number,next){ //generate the local and foreign arrays;
     var local = createAscList().slice(0,number);
     var foreign = createAscList().slice(number);
-    return [local,foreign];
+    next(void(0),[local,foreign]);
   }
 )
 
@@ -35,10 +35,10 @@ applyTests(
     }
     return list;
   },
-  function(number){ //generate the local and foreign arrays;
+  function(number,next){ //generate the local and foreign arrays;
     var local = createDescList().slice(number);
     var foreign = createDescList().slice(0,number);
-    return [local,foreign];
+    next(void(0),[local,foreign]);
   }
 );
 
@@ -54,17 +54,22 @@ function applyTests(type,listfn,fn){
         return local.reverse();
     }}
   ].forEach(function(num){
-    var lf = fn(num.number);
-    if(num.local) lf[0] = num.local(lf[0]);
-    torun(lf[0],lf[1]);
+    fn(num.number,function(error,lf){
+      assert.ifError(error);
+      if(num.local) lf[0] = num.local(lf[0]);
+      torun(lf[0],lf[1]);
+    });
   });
 }
 
 
 function checkTestType(local,foreign){
-  if(local.length == 1) return "Unknown Local";
-  if(foreign.length == 1) return "Unknown Foreign";
-  if(checkArrayOrder(local) == checkArrayOrder(foreign)) return "Same Order"
+  if(local.length == 1)
+    return "Unknown Local";
+  if(foreign.length == 1)
+    return "Unknown Foreign";
+  if(orderer.checkArrayOrder(local) == orderer.checkArrayOrder(foreign))
+    return "Same Order"
   return "Local with Wrong Order"
 }
 
@@ -78,14 +83,9 @@ function runTest(type,original,local,foreign){
   console.log("SUCCESS: "+msg);
 }
 
-
-function checkArrayOrder(ari){
-  return !ari || ari.length < 2?
-    "unk":
-    ari[0].timestamp < ari[1].timestamp?
-      "asc":"desc";
-}
-
 function constructMessage(type,local,foreign,attempt,original){
-  return "list["+type+"] "+checkTestType(local,foreign)+"\n"+util.inspect([attempt||local,original||foreign]);
+  return "list["+type+"] "+
+    checkTestType(local,foreign)+
+    "\n"+util.inspect([attempt||local,original||foreign])
+  ;
 }
